@@ -1,9 +1,6 @@
 #!/usr/bin/env ts-node
-import puppeteer from 'puppeteer-extra'
-import StealthPlugin from 'puppeteer-extra-plugin-stealth'
+import { chromium } from 'playwright'
 import { sendTelegramMessage } from '../utils/sendTelegramMessage'
-
-puppeteer.use(StealthPlugin())
 
 // Logger 类型补丁
 interface Logger {
@@ -36,47 +33,37 @@ async function extractPosts(page: any) {
   })
 }
 
-async function createBrowser() {
-  return await puppeteer.launch({
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--no-first-run',
-      '--no-zygote',
-      '--single-process',
-      '--window-size=1920,1080',
-      '--disable-web-security',
-      '--disable-features=IsolateOrigins,site-per-process',
-      '--disable-site-isolation-trials',
-      '--disable-extensions',
-      '--disable-component-extensions-with-background-pages',
-      '--disable-default-apps',
-      '--mute-audio'
-    ]
-  })
-}
+const USER_AGENTS = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
+]
 
 async function tryNavigate(url: string, maxRetries = 3) {
   for (let i = 0; i < maxRetries; i++) {
     let browser = null
-    let page = null
     try {
-      browser = await createBrowser()
-      page = await browser.newPage()
-      
-      // 随机选择一个 User-Agent
-      const userAgent = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]
-      await page.setUserAgent(userAgent)
-      
-      // 设置视窗大小
-      await page.setViewport({ width: 1920, height: 1080 })
-      
-      // 设置请求超时
-      await page.setDefaultNavigationTimeout(30000)
-      
+      // 使用 Playwright 的 chromium
+      browser = await chromium.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu'
+        ]
+      })
+
+      // 创建上下文，设置 viewport 和 userAgent
+      const context = await browser.newContext({
+        viewport: { width: 1920, height: 1080 },
+        userAgent: USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)],
+        ignoreHTTPSErrors: true
+      })
+
+      // 创建新页面
+      const page = await context.newPage()
+
       // 设置额外的请求头
       await page.setExtraHTTPHeaders({
         'Accept-Language': 'zh-CN,zh;q=0.9',
@@ -85,29 +72,31 @@ async function tryNavigate(url: string, maxRetries = 3) {
         'Cache-Control': 'max-age=0'
       })
 
-      // 简化的导航策略
+      // 导航到页面
       await page.goto(url, {
         waitUntil: 'domcontentloaded',
         timeout: 30000
       })
 
       // 等待一段时间
-      await new Promise(resolve => setTimeout(resolve, 5000))
+      await page.waitForTimeout(5000)
 
       // 模拟滚动
       await page.evaluate(() => {
         window.scrollBy(0, 500)
       })
 
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      await page.waitForTimeout(2000)
 
+      // 提取数据
       const result = await extractPosts(page)
+
+      // 关闭浏览器
+      await browser.close()
+
       return result
     } catch (error: any) {
       console.log(`Navigation attempt ${i + 1} failed:`, error.message)
-      if (page) {
-        await page.close().catch(() => {})
-      }
       if (browser) {
         await browser.close().catch(() => {})
       }
@@ -119,12 +108,6 @@ async function tryNavigate(url: string, maxRetries = 3) {
   }
   throw new Error('Navigation failed after all retries')
 }
-
-const USER_AGENTS = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
-]
 
 export async function runLabubuJob(logger: Logger, debugMode = false) {
   let posts: {content: string, time: string}[] = []
