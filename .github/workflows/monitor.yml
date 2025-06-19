@@ -21,6 +21,9 @@ jobs:
       - name: Install dependencies and Chromium
         run: PUPPETEER_PRODUCT=chrome npm install
 
+      - name: Fix ts-node permissions
+        run: chmod +x ./node_modules/.bin/ts-node
+
       - name: Create .env file from secrets
         run: |
           echo "BOT_TOKEN=${{ secrets.BOT_TOKEN }}" > .env
