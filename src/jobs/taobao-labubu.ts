@@ -51,11 +51,19 @@ export async function runTaobaoLabubuJob(logger: Logger, debugMode = false) {
         }
 
         logger.info(`(第 ${i + 1} 次尝试) 打开淘宝商品页...`)
-        await page.goto(TAOBAO_URL, { waitUntil: 'networkidle2', timeout: 60000 })
+        
+        // 使用更简单的导航策略
+        await page.goto(TAOBAO_URL, { 
+          waitUntil: 'domcontentloaded', // 改为更简单的等待条件
+          timeout: 30000 
+        })
+
+        // 增加更多的等待时间
+        await new Promise(resolve => setTimeout(resolve, 8000))
 
         await page.mouse.move(Math.random() * 1000, Math.random() * 1000);
         await page.mouse.wheel({ deltaY: 400 }); // Puppeteer takes an object.
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
         const buttonSelector = '#purchasePanel > div._4nNipe17pV--footWrap--_5db9b8b > div > div._4nNipe17pV--LeftButtonList--_21fe567 > button:nth-child(1)'
         const btn = await page.$(buttonSelector)
@@ -72,8 +80,8 @@ export async function runTaobaoLabubuJob(logger: Logger, debugMode = false) {
           await browser.close()
         }
         if (i < 2) {
-          logger.info('10 秒后重试...')
-          await new Promise(resolve => setTimeout(resolve, 10000))
+          logger.info('15 秒后重试...')
+          await new Promise(resolve => setTimeout(resolve, 15000))
         } else {
           logger.info('所有尝试均失败。')
           throw error

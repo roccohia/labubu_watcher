@@ -68,12 +68,15 @@ export async function runLabubuJob(logger: Logger, debugMode = false) {
         await page.setViewport({ width: 1920, height: 1080 })
         
         logger.info(`(第 ${i + 1} 次尝试) 打开小红书搜索页...`)
+        
+        // 使用更简单的导航策略
         await page.goto('https://www.xiaohongshu.com/search_result?keyword=labubu', {
-          waitUntil: 'networkidle2',
-          timeout: 60000
+          waitUntil: 'domcontentloaded', // 改为更简单的等待条件
+          timeout: 30000
         })
         
-        await new Promise(resolve => setTimeout(resolve, 5000))
+        // 增加更多的等待时间
+        await new Promise(resolve => setTimeout(resolve, 10000))
         
         posts = await extractPosts(page)
         logger.info('成功获取页面内容。')
@@ -85,8 +88,8 @@ export async function runLabubuJob(logger: Logger, debugMode = false) {
           await browser.close()
         }
         if (i < 2) {
-          logger.info('10 秒后重试...')
-          await new Promise(resolve => setTimeout(resolve, 10000))
+          logger.info('15 秒后重试...')
+          await new Promise(resolve => setTimeout(resolve, 15000))
         } else {
           logger.info('所有尝试均失败。')
           throw error
