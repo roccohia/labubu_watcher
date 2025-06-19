@@ -10,8 +10,8 @@
     "debug:xhs": "ts-node src/jobs/xhs-labubu.ts --debug",
     "debug:taobao": "ts-node src/jobs/taobao-labubu.ts --debug",
     "debug:douyin": "ts-node src/jobs/douyin-labubu.ts --debug",
-    "run:all": "ts-node src/jobs/run-all.ts",
-    "debug:all": "ts-node src/jobs/run-all.ts --debug"
+    "run:all": "npx ts-node src/jobs/run-all.ts",
+    "debug:all": "npx ts-node src/jobs/run-all.ts --debug"
   },
   "keywords": [],
   "author": "",
