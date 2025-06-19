@@ -1,0 +1,27 @@
+name: Watch Labubu
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'  # 每 10 分钟运行一次
+  workflow_dispatch:        # 支持手动触发
+
+jobs:
+  run-monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run monitoring script
+        run: npm run run:all
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
