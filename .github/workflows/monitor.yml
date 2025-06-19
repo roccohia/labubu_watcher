@@ -18,11 +18,8 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Set PUPPETEER_PRODUCT to Chrome
-        run: echo "PUPPETEER_PRODUCT=chrome" >> $GITHUB_ENV
-
-      - name: Install dependencies (includes Chromium)
-        run: npm install
+      - name: Install dependencies and Chrome
+        run: PUPPETEER_PRODUCT=chrome npm install
 
       - name: Fix ts-node permissions
         run: chmod +x ./node_modules/.bin/ts-node
