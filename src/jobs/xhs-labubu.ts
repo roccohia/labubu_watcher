@@ -1,6 +1,9 @@
 #!/usr/bin/env ts-node
-import { chromium } from 'playwright'
+import puppeteer from 'puppeteer-extra'
+import StealthPlugin from 'puppeteer-extra-plugin-stealth'
 import { sendTelegramMessage } from '../utils/sendTelegramMessage'
+
+puppeteer.use(StealthPlugin())
 
 // Logger 类型补丁
 interface Logger {
@@ -33,82 +36,6 @@ async function extractPosts(page: any) {
   })
 }
 
-const USER_AGENTS = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
-]
-
-async function tryNavigate(url: string, maxRetries = 3) {
-  for (let i = 0; i < maxRetries; i++) {
-    let browser = null
-    try {
-      // 使用 Playwright 的 chromium
-      browser = await chromium.launch({
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu'
-        ]
-      })
-
-      // 创建上下文，设置 viewport 和 userAgent
-      const context = await browser.newContext({
-        viewport: { width: 1920, height: 1080 },
-        userAgent: USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)],
-        ignoreHTTPSErrors: true
-      })
-
-      // 创建新页面
-      const page = await context.newPage()
-
-      // 设置额外的请求头
-      await page.setExtraHTTPHeaders({
-        'Accept-Language': 'zh-CN,zh;q=0.9',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Connection': 'keep-alive',
-        'Cache-Control': 'max-age=0'
-      })
-
-      // 导航到页面
-      await page.goto(url, {
-        waitUntil: 'domcontentloaded',
-        timeout: 30000
-      })
-
-      // 等待一段时间
-      await page.waitForTimeout(5000)
-
-      // 模拟滚动
-      await page.evaluate(() => {
-        window.scrollBy(0, 500)
-      })
-
-      await page.waitForTimeout(2000)
-
-      // 提取数据
-      const result = await extractPosts(page)
-
-      // 关闭浏览器
-      await browser.close()
-
-      return result
-    } catch (error: any) {
-      console.log(`Navigation attempt ${i + 1} failed:`, error.message)
-      if (browser) {
-        await browser.close().catch(() => {})
-      }
-      if (i === maxRetries - 1) {
-        throw error
-      }
-      await new Promise(resolve => setTimeout(resolve, 10000))
-    }
-  }
-  throw new Error('Navigation failed after all retries')
-}
-
 export async function runLabubuJob(logger: Logger, debugMode = false) {
   let posts: {content: string, time: string}[] = []
 
@@ -120,12 +47,41 @@ export async function runLabubuJob(logger: Logger, debugMode = false) {
     ]
     logger.info('[DEBUG] 使用模拟帖子数据')
   } else {
+    let browser = null
     try {
+      browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process',
+          '--window-size=1920,1080'
+        ]
+      })
+      
+      const page = await browser.newPage()
+      await page.setViewport({ width: 1920, height: 1080 })
+      
       logger.info('打开小红书搜索页...')
-      posts = await tryNavigate('https://www.xiaohongshu.com/search_result?keyword=labubu')
+      await page.goto('https://www.xiaohongshu.com/search_result?keyword=labubu', {
+        waitUntil: 'networkidle2',
+        timeout: 60000
+      })
+      
+      await new Promise(resolve => setTimeout(resolve, 5000))
+      
+      posts = await extractPosts(page)
     } catch (error: any) {
       logger.info(`发生错误: ${error.message}`)
       throw error
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
     }
   }
 
