@@ -22,7 +22,7 @@ jobs:
         run: npm install
 
       - name: Install Chrome for Puppeteer
-        run: node node_modules/puppeteer/lib/cjs/puppeteer/install.mjs chrome
+        run: npx --yes puppeteer@latest install --chrome
 
       - name: Create .env file from secrets
         run: |
