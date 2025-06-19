@@ -36,11 +36,35 @@ async function extractPosts(page: any) {
   })
 }
 
-async function tryNavigate(browser: any, url: string, maxRetries = 3) {
+async function createBrowser() {
+  return await puppeteer.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--no-first-run',
+      '--no-zygote',
+      '--single-process',
+      '--window-size=1920,1080',
+      '--disable-web-security',
+      '--disable-features=IsolateOrigins,site-per-process',
+      '--disable-site-isolation-trials',
+      '--disable-extensions',
+      '--disable-component-extensions-with-background-pages',
+      '--disable-default-apps',
+      '--mute-audio'
+    ]
+  })
+}
+
+async function tryNavigate(url: string, maxRetries = 3) {
   for (let i = 0; i < maxRetries; i++) {
-    let page = null;
+    let browser = null
+    let page = null
     try {
-      // 每次尝试都创建新的页面
+      browser = await createBrowser()
       page = await browser.newPage()
       
       // 随机选择一个 User-Agent
@@ -51,7 +75,7 @@ async function tryNavigate(browser: any, url: string, maxRetries = 3) {
       await page.setViewport({ width: 1920, height: 1080 })
       
       // 设置请求超时
-      await page.setDefaultNavigationTimeout(60000)
+      await page.setDefaultNavigationTimeout(30000)
       
       // 设置额外的请求头
       await page.setExtraHTTPHeaders({
@@ -77,11 +101,15 @@ async function tryNavigate(browser: any, url: string, maxRetries = 3) {
 
       await new Promise(resolve => setTimeout(resolve, 2000))
 
-      return page
+      const result = await extractPosts(page)
+      return result
     } catch (error: any) {
       console.log(`Navigation attempt ${i + 1} failed:`, error.message)
       if (page) {
         await page.close().catch(() => {})
+      }
+      if (browser) {
+        await browser.close().catch(() => {})
       }
       if (i === maxRetries - 1) {
         throw error
@@ -100,8 +128,6 @@ const USER_AGENTS = [
 
 export async function runLabubuJob(logger: Logger, debugMode = false) {
   let posts: {content: string, time: string}[] = []
-  let browser
-  let page
 
   if (debugMode) {
     posts = [
@@ -112,37 +138,11 @@ export async function runLabubuJob(logger: Logger, debugMode = false) {
     logger.info('[DEBUG] 使用模拟帖子数据')
   } else {
     try {
-      browser = await puppeteer.launch({
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--no-first-run',
-          '--no-zygote',
-          '--single-process',
-          '--window-size=1920,1080',
-          '--disable-web-security',
-          '--disable-features=IsolateOrigins,site-per-process',
-          '--disable-site-isolation-trials'
-        ]
-      })
-      
       logger.info('打开小红书搜索页...')
-      page = await tryNavigate(browser, 'https://www.xiaohongshu.com/search_result?keyword=labubu')
-      
-      posts = await extractPosts(page)
+      posts = await tryNavigate('https://www.xiaohongshu.com/search_result?keyword=labubu')
     } catch (error: any) {
       logger.info(`发生错误: ${error.message}`)
       throw error
-    } finally {
-      if (page) {
-        await page.close().catch(() => {})
-      }
-      if (browser) {
-        await browser.close().catch(() => {})
-      }
     }
   }
 
