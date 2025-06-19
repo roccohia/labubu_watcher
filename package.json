@@ -1,0 +1,32 @@
+{
+  "name": "labubu_watcher",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "run:xhs": "ts-node src/jobs/xhs-labubu.ts",
+    "run:taobao": "ts-node src/jobs/taobao-labubu.ts",
+    "run:douyin": "ts-node src/jobs/douyin-labubu.ts",
+    "debug:xhs": "ts-node src/jobs/xhs-labubu.ts --debug",
+    "debug:taobao": "ts-node src/jobs/taobao-labubu.ts --debug",
+    "debug:douyin": "ts-node src/jobs/douyin-labubu.ts --debug",
+    "run:all": "ts-node src/jobs/run-all.ts",
+    "debug:all": "ts-node src/jobs/run-all.ts --debug"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "node-fetch": "^2.6.7",
+    "puppeteer": "^24.10.2",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.1"
+  },
+  "devDependencies": {
+    "@types/node-fetch": "^2.6.12",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
