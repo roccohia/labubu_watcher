@@ -33,11 +33,30 @@ async function extractPosts(page: any) {
   })
 }
 
+async function tryNavigate(page: any, url: string, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      await page.goto(url, {
+        waitUntil: 'networkidle0',
+        timeout: 30000
+      })
+      return true
+    } catch (error) {
+      if (i === maxRetries - 1) {
+        throw error
+      }
+      console.log(`Navigation attempt ${i + 1} failed, retrying...`)
+      await new Promise(resolve => setTimeout(resolve, 5000))
+    }
+  }
+  return false
+}
+
 export async function runLabubuJob(logger: Logger, debugMode = false) {
   let posts: {content: string, time: string}[] = []
+  let browser
 
   if (debugMode) {
-    // 模拟一条含"补货"+"刚刚"的新帖
     posts = [
       { content: 'Labubu 补货啦！速来', time: '刚刚' },
       { content: 'Labubu 突击发售', time: '2小时前' },
@@ -45,29 +64,40 @@ export async function runLabubuJob(logger: Logger, debugMode = false) {
     ]
     logger.info('[DEBUG] 使用模拟帖子数据')
   } else {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process'
-      ]
-    })
-    const page = await browser.newPage()
-
-    logger.info('打开小红书搜索页...')
-    await page.goto('https://www.xiaohongshu.com/search_result?keyword=labubu', {
-      waitUntil: 'domcontentloaded',
-    })
-
-    await new Promise(resolve => setTimeout(resolve, 3000)) // 等待页面内容加载
-
-    posts = await extractPosts(page)
-    await browser.close()
+    try {
+      browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process',
+          '--window-size=1920,1080'
+        ]
+      })
+      
+      const page = await browser.newPage()
+      await page.setViewport({ width: 1920, height: 1080 })
+      await page.setDefaultNavigationTimeout(30000)
+      
+      logger.info('打开小红书搜索页...')
+      await tryNavigate(page, 'https://www.xiaohongshu.com/search_result?keyword=labubu')
+      
+      // 等待更长时间确保内容加载
+      await new Promise(resolve => setTimeout(resolve, 5000))
+      
+      posts = await extractPosts(page)
+    } catch (error: any) {
+      logger.info(`发生错误: ${error.message}`)
+      throw error
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
   }
 
   // 优先判断"补货"，其次"突击"+"发售"，并且必须是新帖
