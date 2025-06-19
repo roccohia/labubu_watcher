@@ -45,7 +45,10 @@ export async function runLabubuJob(logger: Logger, debugMode = false) {
     ]
     logger.info('[DEBUG] 使用模拟帖子数据')
   } else {
-    const browser = await puppeteer.launch({ headless: true })
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    })
     const page = await browser.newPage()
 
     logger.info('打开小红书搜索页...')

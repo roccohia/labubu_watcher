@@ -45,7 +45,10 @@ export async function runDouyinLabubuJob(logger: Logger, debugMode = false) {
     ]
     logger.info('[DEBUG] 使用模拟抖音视频数据')
   } else {
-    const browser = await puppeteer.launch({ headless: true })
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    })
     const page = await browser.newPage()
     logger.info('打开抖音泡泡玛特官方账号主页...')
     await page.goto(DOUYIN_URL, { waitUntil: 'domcontentloaded' })

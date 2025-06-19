@@ -24,7 +24,10 @@ export async function runTaobaoLabubuJob(logger: Logger, debugMode = false) {
     buttonText = '立即购买'
     logger.info('[DEBUG] 使用模拟淘宝商品数据')
   } else {
-    const browser = await puppeteer.launch({ headless: false })
+    const browser = await puppeteer.launch({
+      headless: false,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    })
     const page = await browser.newPage()
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36')
     await page.setViewport({ width: 1280, height: 800 })
