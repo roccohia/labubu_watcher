@@ -1,6 +1,9 @@
 #!/usr/bin/env ts-node
-import puppeteer from 'puppeteer'
+import puppeteer from 'puppeteer-extra'
+import StealthPlugin from 'puppeteer-extra-plugin-stealth'
 import { sendTelegramMessage } from '../utils/sendTelegramMessage'
+
+puppeteer.use(StealthPlugin())
 
 // Logger 类型补丁
 interface Logger {
@@ -37,8 +40,8 @@ async function tryNavigate(page: any, url: string, maxRetries = 3) {
   for (let i = 0; i < maxRetries; i++) {
     try {
       await page.goto(url, {
-        waitUntil: 'networkidle0',
-        timeout: 30000
+        waitUntil: 'networkidle2',
+        timeout: 60000
       })
       return true
     } catch (error) {
@@ -46,11 +49,17 @@ async function tryNavigate(page: any, url: string, maxRetries = 3) {
         throw error
       }
       console.log(`Navigation attempt ${i + 1} failed, retrying...`)
-      await new Promise(resolve => setTimeout(resolve, 5000))
+      await new Promise(resolve => setTimeout(resolve, 10000))
     }
   }
   return false
 }
+
+const USER_AGENTS = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
+]
 
 export async function runLabubuJob(logger: Logger, debugMode = false) {
   let posts: {content: string, time: string}[] = []
@@ -75,19 +84,45 @@ export async function runLabubuJob(logger: Logger, debugMode = false) {
           '--no-first-run',
           '--no-zygote',
           '--single-process',
-          '--window-size=1920,1080'
+          '--window-size=1920,1080',
+          '--disable-web-security',
+          '--disable-features=IsolateOrigins,site-per-process',
+          '--disable-site-isolation-trials'
         ]
       })
       
       const page = await browser.newPage()
+      
+      // 随机选择一个 User-Agent
+      const userAgent = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]
+      await page.setUserAgent(userAgent)
+      
+      // 设置视窗大小
       await page.setViewport({ width: 1920, height: 1080 })
-      await page.setDefaultNavigationTimeout(30000)
+      
+      // 设置请求超时
+      await page.setDefaultNavigationTimeout(60000)
+      
+      // 设置额外的请求头
+      await page.setExtraHTTPHeaders({
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Connection': 'keep-alive',
+        'Cache-Control': 'max-age=0'
+      })
       
       logger.info('打开小红书搜索页...')
       await tryNavigate(page, 'https://www.xiaohongshu.com/search_result?keyword=labubu')
       
       // 等待更长时间确保内容加载
-      await new Promise(resolve => setTimeout(resolve, 5000))
+      await new Promise(resolve => setTimeout(resolve, 10000))
+      
+      // 模拟滚动
+      await page.evaluate(() => {
+        window.scrollBy(0, 500)
+      })
+      
+      await new Promise(resolve => setTimeout(resolve, 2000))
       
       posts = await extractPosts(page)
     } catch (error: any) {
