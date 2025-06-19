@@ -9,6 +9,9 @@ jobs:
   monitor:
     runs-on: ubuntu-latest
 
+    env:
+      PUPPETEER_CACHE_DIR: ~/.cache/puppeteer
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -19,7 +22,9 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies and Chromium
-        run: PUPPETEER_PRODUCT=chrome npm install
+        run: |
+          npm install
+          node node_modules/puppeteer/install.js
 
       - name: Fix ts-node permissions
         run: chmod +x ./node_modules/.bin/ts-node
