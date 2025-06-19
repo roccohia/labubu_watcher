@@ -37,12 +37,40 @@ export async function runTaobaoLabubuJob(logger: Logger, debugMode = false) {
             '--no-first-run',
             '--no-zygote',
             '--single-process',
-            '--window-size=1920,1080'
+            '--window-size=1920,1080',
+            '--disable-web-security',
+            '--disable-features=IsolateOrigins,site-per-process',
+            '--disable-site-isolation-trials',
+            '--disable-extensions',
+            '--disable-component-extensions-with-background-pages',
+            '--disable-default-apps',
+            '--mute-audio',
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding',
+            '--disable-features=TranslateUI',
+            '--disable-ipc-flooding-protection'
           ]
         })
         const page = await browser.newPage()
+        
+        // 设置更真实的浏览器特征
         await page.setViewport({ width: 1920, height: 1080 })
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36')
+        
+        // 设置额外的请求头
+        await page.setExtraHTTPHeaders({
+          'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'none',
+          'Sec-Fetch-User': '?1',
+          'Cache-Control': 'max-age=0'
+        })
 
         if (fs.existsSync(COOKIES_PATH)) {
           const cookies = JSON.parse(fs.readFileSync(COOKIES_PATH, 'utf-8'))
@@ -52,18 +80,18 @@ export async function runTaobaoLabubuJob(logger: Logger, debugMode = false) {
 
         logger.info(`(第 ${i + 1} 次尝试) 打开淘宝商品页...`)
         
-        // 使用更简单的导航策略
+        // 使用最保守的导航策略
         await page.goto(TAOBAO_URL, { 
-          waitUntil: 'domcontentloaded', // 改为更简单的等待条件
-          timeout: 30000 
+          waitUntil: 'load', // 使用最基本的等待条件
+          timeout: 60000 
         })
 
+        // 模拟真实用户行为
+        await page.mouse.move(Math.random() * 1000, Math.random() * 1000)
+        await page.mouse.wheel({ deltaY: 400 })
+        
         // 增加更多的等待时间
-        await new Promise(resolve => setTimeout(resolve, 8000))
-
-        await page.mouse.move(Math.random() * 1000, Math.random() * 1000);
-        await page.mouse.wheel({ deltaY: 400 }); // Puppeteer takes an object.
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 12000))
 
         const buttonSelector = '#purchasePanel > div._4nNipe17pV--footWrap--_5db9b8b > div > div._4nNipe17pV--LeftButtonList--_21fe567 > button:nth-child(1)'
         const btn = await page.$(buttonSelector)
@@ -80,8 +108,8 @@ export async function runTaobaoLabubuJob(logger: Logger, debugMode = false) {
           await browser.close()
         }
         if (i < 2) {
-          logger.info('15 秒后重试...')
-          await new Promise(resolve => setTimeout(resolve, 15000))
+          logger.info('20 秒后重试...')
+          await new Promise(resolve => setTimeout(resolve, 20000))
         } else {
           logger.info('所有尝试均失败。')
           throw error
