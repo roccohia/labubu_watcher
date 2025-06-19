@@ -48,35 +48,45 @@ export async function runDouyinLabubuJob(logger: Logger, debugMode = false) {
     ]
     logger.info('[DEBUG] 使用模拟抖音视频数据')
   } else {
-    let browser = null
-    try {
-      browser = await puppeteer.launch({
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--no-first-run',
-          '--no-zygote',
-          '--single-process',
-          '--window-size=1920,1080'
-        ]
-      })
-      const page = await browser.newPage()
-      await page.setViewport({ width: 1920, height: 1080 })
+    for (let i = 0; i < 3; i++) {
+      let browser = null
+      try {
+        browser = await puppeteer.launch({
+          headless: true,
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process',
+            '--window-size=1920,1080'
+          ]
+        })
+        const page = await browser.newPage()
+        await page.setViewport({ width: 1920, height: 1080 })
 
-      logger.info('打开抖音泡泡玛特官方账号主页...')
-      await page.goto(DOUYIN_URL, { waitUntil: 'networkidle2', timeout: 60000 })
-      await new Promise(resolve => setTimeout(resolve, 5000))
-      posts = await extractDouyinPosts(page)
-    }
-    catch (error: any) {
-      logger.info(`发生错误: ${error.message}`)
-      throw error
-    } finally {
-      if (browser) {
+        logger.info(`(第 ${i + 1} 次尝试) 打开抖音泡泡玛特官方账号主页...`)
+        await page.goto(DOUYIN_URL, { waitUntil: 'networkidle2', timeout: 60000 })
+        await new Promise(resolve => setTimeout(resolve, 5000))
+        posts = await extractDouyinPosts(page)
+        logger.info('成功获取页面内容。')
         await browser.close()
+        break;
+      }
+      catch (error: any) {
+        logger.info(`(第 ${i + 1} 次尝试) 发生错误: ${error.message}`)
+        if (browser) {
+          await browser.close()
+        }
+        if (i < 2) {
+          logger.info('10 秒后重试...')
+          await new Promise(resolve => setTimeout(resolve, 10000))
+        } else {
+          logger.info('所有尝试均失败。')
+          throw error
+        }
       }
     }
   }

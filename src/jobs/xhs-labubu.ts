@@ -47,40 +47,50 @@ export async function runLabubuJob(logger: Logger, debugMode = false) {
     ]
     logger.info('[DEBUG] 使用模拟帖子数据')
   } else {
-    let browser = null
-    try {
-      browser = await puppeteer.launch({
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--no-first-run',
-          '--no-zygote',
-          '--single-process',
-          '--window-size=1920,1080'
-        ]
-      })
-      
-      const page = await browser.newPage()
-      await page.setViewport({ width: 1920, height: 1080 })
-      
-      logger.info('打开小红书搜索页...')
-      await page.goto('https://www.xiaohongshu.com/search_result?keyword=labubu', {
-        waitUntil: 'networkidle2',
-        timeout: 60000
-      })
-      
-      await new Promise(resolve => setTimeout(resolve, 5000))
-      
-      posts = await extractPosts(page)
-    } catch (error: any) {
-      logger.info(`发生错误: ${error.message}`)
-      throw error
-    } finally {
-      if (browser) {
+    for (let i = 0; i < 3; i++) { // 重试 3 次
+      let browser = null
+      try {
+        browser = await puppeteer.launch({
+          headless: true,
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process',
+            '--window-size=1920,1080'
+          ]
+        })
+        
+        const page = await browser.newPage()
+        await page.setViewport({ width: 1920, height: 1080 })
+        
+        logger.info(`(第 ${i + 1} 次尝试) 打开小红书搜索页...`)
+        await page.goto('https://www.xiaohongshu.com/search_result?keyword=labubu', {
+          waitUntil: 'networkidle2',
+          timeout: 60000
+        })
+        
+        await new Promise(resolve => setTimeout(resolve, 5000))
+        
+        posts = await extractPosts(page)
+        logger.info('成功获取页面内容。')
         await browser.close()
+        break; // 成功则跳出循环
+      } catch (error: any) {
+        logger.info(`(第 ${i + 1} 次尝试) 发生错误: ${error.message}`)
+        if (browser) {
+          await browser.close()
+        }
+        if (i < 2) {
+          logger.info('10 秒后重试...')
+          await new Promise(resolve => setTimeout(resolve, 10000))
+        } else {
+          logger.info('所有尝试均失败。')
+          throw error
+        }
       }
     }
   }
