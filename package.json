@@ -4,12 +4,12 @@
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "run:xhs": "ts-node src/jobs/xhs-labubu.ts",
-    "run:taobao": "ts-node src/jobs/taobao-labubu.ts",
-    "run:douyin": "ts-node src/jobs/douyin-labubu.ts",
-    "debug:xhs": "ts-node src/jobs/xhs-labubu.ts --debug",
-    "debug:taobao": "ts-node src/jobs/taobao-labubu.ts --debug",
-    "debug:douyin": "ts-node src/jobs/douyin-labubu.ts --debug",
+    "run:xhs": "npx ts-node src/jobs/xhs-labubu.ts",
+    "run:taobao": "npx ts-node src/jobs/taobao-labubu.ts",
+    "run:douyin": "npx ts-node src/jobs/douyin-labubu.ts",
+    "debug:xhs": "npx ts-node src/jobs/xhs-labubu.ts --debug",
+    "debug:taobao": "npx ts-node src/jobs/taobao-labubu.ts --debug",
+    "debug:douyin": "npx ts-node src/jobs/douyin-labubu.ts --debug",
     "run:all": "npx ts-node src/jobs/run-all.ts",
     "debug:all": "npx ts-node src/jobs/run-all.ts --debug"
   },
