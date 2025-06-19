@@ -36,23 +36,60 @@ async function extractPosts(page: any) {
   })
 }
 
-async function tryNavigate(page: any, url: string, maxRetries = 3) {
+async function tryNavigate(browser: any, url: string, maxRetries = 3) {
   for (let i = 0; i < maxRetries; i++) {
+    let page = null;
     try {
-      await page.goto(url, {
-        waitUntil: 'networkidle2',
-        timeout: 60000
+      // 每次尝试都创建新的页面
+      page = await browser.newPage()
+      
+      // 随机选择一个 User-Agent
+      const userAgent = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]
+      await page.setUserAgent(userAgent)
+      
+      // 设置视窗大小
+      await page.setViewport({ width: 1920, height: 1080 })
+      
+      // 设置请求超时
+      await page.setDefaultNavigationTimeout(60000)
+      
+      // 设置额外的请求头
+      await page.setExtraHTTPHeaders({
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Connection': 'keep-alive',
+        'Cache-Control': 'max-age=0'
       })
-      return true
-    } catch (error) {
+
+      // 简化的导航策略
+      await page.goto(url, {
+        waitUntil: 'domcontentloaded',
+        timeout: 30000
+      })
+
+      // 等待一段时间
+      await new Promise(resolve => setTimeout(resolve, 5000))
+
+      // 模拟滚动
+      await page.evaluate(() => {
+        window.scrollBy(0, 500)
+      })
+
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      return page
+    } catch (error: any) {
+      console.log(`Navigation attempt ${i + 1} failed:`, error.message)
+      if (page) {
+        await page.close().catch(() => {})
+      }
       if (i === maxRetries - 1) {
         throw error
       }
-      console.log(`Navigation attempt ${i + 1} failed, retrying...`)
       await new Promise(resolve => setTimeout(resolve, 10000))
     }
   }
-  return false
+  throw new Error('Navigation failed after all retries')
 }
 
 const USER_AGENTS = [
@@ -64,6 +101,7 @@ const USER_AGENTS = [
 export async function runLabubuJob(logger: Logger, debugMode = false) {
   let posts: {content: string, time: string}[] = []
   let browser
+  let page
 
   if (debugMode) {
     posts = [
@@ -91,46 +129,19 @@ export async function runLabubuJob(logger: Logger, debugMode = false) {
         ]
       })
       
-      const page = await browser.newPage()
-      
-      // 随机选择一个 User-Agent
-      const userAgent = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]
-      await page.setUserAgent(userAgent)
-      
-      // 设置视窗大小
-      await page.setViewport({ width: 1920, height: 1080 })
-      
-      // 设置请求超时
-      await page.setDefaultNavigationTimeout(60000)
-      
-      // 设置额外的请求头
-      await page.setExtraHTTPHeaders({
-        'Accept-Language': 'zh-CN,zh;q=0.9',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Connection': 'keep-alive',
-        'Cache-Control': 'max-age=0'
-      })
-      
       logger.info('打开小红书搜索页...')
-      await tryNavigate(page, 'https://www.xiaohongshu.com/search_result?keyword=labubu')
-      
-      // 等待更长时间确保内容加载
-      await new Promise(resolve => setTimeout(resolve, 10000))
-      
-      // 模拟滚动
-      await page.evaluate(() => {
-        window.scrollBy(0, 500)
-      })
-      
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      page = await tryNavigate(browser, 'https://www.xiaohongshu.com/search_result?keyword=labubu')
       
       posts = await extractPosts(page)
     } catch (error: any) {
       logger.info(`发生错误: ${error.message}`)
       throw error
     } finally {
+      if (page) {
+        await page.close().catch(() => {})
+      }
       if (browser) {
-        await browser.close()
+        await browser.close().catch(() => {})
       }
     }
   }
