@@ -21,10 +21,11 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install dependencies and Chromium
-        run: |
-          npm install
-          node node_modules/puppeteer/install.js
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Chrome for Puppeteer
+        run: npx puppeteer browsers install chrome
 
       - name: Fix ts-node permissions
         run: chmod +x ./node_modules/.bin/ts-node
